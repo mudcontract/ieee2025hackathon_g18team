@@ -1,92 +1,105 @@
-IEEE 2025 team G18
+SSVEP BCI Classification (Team G18)
 
-**Analyze an SSVEP BCI data-set from a healthy person in order to optimize pre-processing, feature extraction and classification algorithms. Compare your results with state-of-the-art algorithms.**
+Analyze an SSVEP EEG dataset and build a full pipeline that covers preprocessing, segmentation, modeling, and evaluation. The final, maintained code lives in the notebook:
 
-Steps from Ted:
+- final_code/SSVEP_BCI_Classification_G18.ipynb
 
-1. Here we have eight EEG channels, and we can map them to their corresponding labels using the trigger information — for example, if the trigger shows that 10 Hz was activated at the first second.
-2. Next, I’d do some basic preprocessing, such as band-pass filtering, notch filtering (to remove power-line noise), etc.u might have their own preferred techniques here.
-3. After that, segment the data so that each EEG segment corresponds to one stimulation frequency. These segments will serve as the basic modeling units.
-4. Then comes the modeling and validation part. My initial idea for the AI model is:
-   1. Generate frequency-domain features using Fourier transform or wavelet transform;
-   2. Combine them with spatial-temporal features and feed them into a neural network for modeling.
-   3. Depending on the trade-off between speed and accuracy, we can also explore other approaches — this is just a direction I’m more familiar with, not necessarily the best one here.
-5. Finally, we can evaluate the model and visualize the results.
-   The evaluation goals might include accuracy, runtime efficiency, and response time, among others.
-6. To push things further, I think we could explore questions like:
-   1. Can we achieve good performance using fewer channels?
-   2. Can we train with fewer samples?
-   3. How does channel combination affect the overall accuracy?
+The scripts in first_tests/ are exploratory prototypes that did not evolve into the final solution.
 
-Assignments: 
+## What’s inside
 
-1. Preprocessing
-   1. Ella
-   2. Ted
-2. Modeling
-   1. Ella
-   2. Ted
-3. Visualization
-   1. Jeronimo
-   2. Nate Yu
+- Data: MATLAB .mat recordings for two subjects in final_code/static/, plus preprocessed .npz datasets in final_code/training_data/.
+- Final notebook: end-to-end pipeline with clear sections: processing, sliding windows, neural models, and visualization.
+- Models: a lightweight 1D CNN (TinyEEGNet) and a time–frequency two-branch CNN; also a simple SVM baseline.
 
-Please read the MNE documentation below for your project assignment.
+## Quick start
 
-[https://mne.tools/stable/index.html](https://mne.tools/stable/index.html "PLEASE READ THE MNE LIBRARY")
+1) Environment
 
-![1759665990667](image/readme/1759665990667.png)
+- Python 3.9+ recommended.
+- Install dependencies:
 
-import mne
+```fish
+pip install -r requirements.txt
+```
 
-1. Load the EDF file
+2) Open and run the final notebook
 
-`raw = mne.io.read_raw_edf('your_file.edf', preload=True)  # preload=True loads data into memory
-print(raw.info)  # View metadata`
+- Open final_code/SSVEP_BCI_Classification_G18.ipynb in VS Code or Jupyter.
+- Select a Python kernel with the dependencies installed.
+- Execute cells top to bottom; each section explains what it does and what to expect.
 
-# 2. Set channel types if not correctly detected (optional but common)
+3) Data layout (repo paths)
 
-# Example: label EEG channels if needed
+- final_code/static/: raw .mat examples (subject_1/2 sessions)
+- final_code/training_data/: pre-generated sliding-window .npz datasets for multiple window sizes
 
-`raw.set_channel_types()`
+If you add new .mat files, update the corresponding glob/path in the notebook cells.
 
-# 3. Apply bandpass filter (e.g., 1–40 Hz for EEG)
+## Pipeline overview (mirrors the notebook)
 
-`raw.filter(l_freq=1.0, h_freq=40.0)`
+1) Data loading & preprocessing
 
-# 4. Resample the data (e.g., to 256 Hz to reduce data size)
+- Create MNE Raw objects with 11 channels: time, 8 EEG channels, trigger, and LDA.
+- Apply 1–40 Hz band-pass and 50 Hz notch filters.
+- Detect trigger events and assign SSVEP frequencies (9, 10, 12, 15 Hz) following the experimental order.
+- Epoch the signal (e.g., 2 s and 8 s). Save epochs to .npz for later modeling.
 
-`raw.resample(sfreq=256)`
+2) Sliding-window segmentation (detailed, single-subject and batch)
 
-# 5. Remove power line noise (e.g., 50 or 60 Hz notch filter)
+- From longer epochs (e.g., 8 s), generate dense windows (e.g., 2.0 s window with 0.2 s step) to augment data and improve temporal resolution.
+- Outputs arrays shaped like (n_windows, n_channels, window_samples) with aligned labels.
 
-`raw.notch_filter(freqs=50)`
+3) Neural network classification
 
-# 6. Plot the signals (optional)
+- TinyEEGNet (1D CNN): Conv1D → BatchNorm → ReLU → GlobalAvgPool → Linear.
+- Time–frequency two-branch CNN: time-domain 1D branch + spectrogram (STFT) 2D branch, fused before classification.
+- Training: Adam + CrossEntropyLoss, train/val split with early stopping for the two-branch model.
 
-raw.plot(n_channels=10, scalings='auto')
+4) Baselines and visualization
 
-# 7. Epoch the data into fixed time segments (e.g., 2-second epochs)
+- SVM baseline on flattened, standardized windows (optionally PCA).
+- Visualization utilities plot representative epochs by frequency and save figures (e.g., epoch_visualization.png).
 
-epochs = mne.make_fixed_length_epochs(raw, duration=2.0, overlap=0.0, preload=True)
-print(epochs)
+## Reproducing results
 
-# 8. (Optional) Run ICA to remove eye-blink or cardiac artifacts
+The notebook contains two TinyEEGNet training runs demonstrating challenges (accuracy near chance) when using a very small/simple model and limited data. The later two-branch time–frequency CNN substantially improves metrics on window lengths ≥ 1.5–2.0 s (see “New version CNN model with double branch” section in the notebook for detailed numbers).
 
-ica = mne.preprocessing.ICA(n_components=15, random_state=42)
-ica.fit(epochs)
+Guidelines to reproduce:
 
-###### Visualize ICA components to manually exclude bad ones
+- Use the pre-generated datasets in final_code/training_data/ (e.g., epochs1_sliding_window_subject_1_1.npz, 1 s windows) or generate new ones by running the preprocessing cells.
+- Keep channel selection consistent with the notebook (use only EEG channels 1–8 for models).
+- Normalize per-epoch per-channel (z-score across time), as in the notebook.
 
-ica.plot_components()
+## Adapting to your data
 
-###### Mark bad components (you'll manually choose e.g. [0, 1] if they represent eye blinks)
+- Replace or add .mat files under final_code/static/.
+- Update the file patterns in the data loading cells (glob paths) to your filenames.
+- Adjust epoch duration (t_epoch), window length, and step size to trade off latency vs accuracy.
 
-ica.exclude = [0, 1]  # <-- Example
+## Tips and known caveats
 
-Apply ICA cleaning
+- Triggers: the notebook maps event order to [15, 12, 10, 9]; confirm your recording protocol and adjust if needed.
+- Paths: some early prototype cells used Colab-style paths (/content). The final sections operate on repository files; ensure paths/globs target final_code/static/ or final_code/training_data/ in your local run.
+- GPU: PyTorch will use CUDA if available; otherwise it falls back to CPU. Training the two-branch model is faster on GPU.
 
-ica.apply(epochs)
+## Repository structure
 
--#9. Save cleaned data (optional)
+- final_code/SSVEP_BCI_Classification_G18.ipynb — Final notebook, use this.
+- final_code/static/*.mat — Sample raw recordings used by the notebook.
+- final_code/training_data/*.npz — Precomputed sliding-window datasets for quick experiments.
+- first_tests/* — Early prototypes (kept for reference only).
 
--#epochs.save('cleaned-epo.fif', overwrite=True)
+## Credits
+
+Participants:
+- Haocheng Wu
+- Mohammadreza Behbood
+- Soukaina Hamou
+- Nathan Yu
+- Jeronimo Sanchez Santamaria
+- Flora Santos
+- Anaya Yorke
+
+Helpful docs: MNE-Python — https://mne.tools/stable/
+

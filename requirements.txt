@@ -1,0 +1,14 @@
+# Core scientific stack
+numpy
+scipy
+matplotlib
+scikit-learn
+
+# EEG processing
+mne
+
+# Deep learning (CPU by default; install CUDA-specific wheels if needed)
+torch
+
+# Jupyter support (VS Code uses this for kernels)
+ipykernel
