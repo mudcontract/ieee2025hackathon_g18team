@@ -93,13 +93,13 @@ Guidelines to reproduce:
 ## Credits
 
 Participants:
-- Haocheng Wu
-- Mohammadreza Behbood
-- Soukaina Hamou
-- Nathan Yu
-- Jeronimo Sanchez Santamaria
+- [Haocheng Wu](https://github.com/TedHaochengWu)
+- [Mohammadreza Behbood](https://github.com/mudcontract)
+- [Soukaina Hamou](https://github.com/SoukainaHAMOU)
+- [Nathan Yu](https://github.com/Littnatenate)
+- [Jeronimo Sanchez Santamaria](https://github.com/JeronimoSantamaria)
 - Flora Santos
-- Anaya Yorke
+- [Anaya Yorke](https://github.com/anaya33)
 
 Helpful docs: MNE-Python — https://mne.tools/stable/
 
